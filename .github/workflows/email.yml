@@ -1,0 +1,90 @@
+name: Send Gmail Email (On Push)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed files
+        run: |
+          FILES=$(git diff --name-only HEAD~1 HEAD | tr '\n' ',' | sed 's/,$//')
+          echo "FILES=$FILES" >> $GITHUB_ENV
+
+      # Get Developer Email
+      - name: Get developer email
+        run: |
+          echo "DEV_EMAIL=${{ github.event.head_commit.committer.email }}" >> $GITHUB_ENV
+
+      - name: Debug commit info
+        run: |
+          echo "Author Name: ${{ github.event.head_commit.author.name }}"
+          echo "Author Email: ${{ github.event.head_commit.author.email }}"
+          echo "Committer Name: ${{ github.event.head_commit.committer.name }}"
+          echo "Committer Email: ${{ github.event.head_commit.committer.email }}"
+
+      # Set reviewer (receiver)
+      - name: Set recipient based on user
+        run: |
+          if [ "${{ github.event.head_commit.committer.name }}" = "Alpesh" ]; then
+            echo "RECIPIENT=${{ github.event.head_commit.author.email }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.head_commit.committer.name }}" = "Gaurav" ]; then
+            echo "RECIPIENT=${{ github.event.head_commit.author.email }}" >> $GITHUB_ENV
+          fi
+
+        
+        
+        
+
+      # Send Email
+      - name: Send email via Gmail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "🚀 ABAP Code Review Required: ${{ env.FILES }}"
+          to: ${{ env.RECIPIENT }}
+          from: ${{ secrets.GMAIL_USERNAME }}
+
+          html_body: |
+            <h2>✅ ABAP Code Review Required</h2>
+
+            <p><b>👤 Developer:</b> ${{ github.event.head_commit.author.name }}</p>
+
+            <p><b>📂 Files Changed:</b><br>
+            ${{ env.FILES }}</p>
+
+            <p>
+              <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">
+                🔗 View Commit in GitHub
+              </a>
+            </p>
+
+            <hr>
+
+            <h3>👉 Review Actions</h3>
+
+            &nbsp;&nbsp;
+
+            <!-- 🔄 Review -->
+            
+            <a href="https://1c6497b9trial-dev-product-management.cfapps.us10-001.hana.ondemand.com/approvalui/index.html?dev_email=${{ env.DEV_EMAIL }}&files=${{ env.FILES }}&commit=${{ github.sha }}"
+               style="background:#ffc107;color:black;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;">
+               🔄 Review
+            </a>
+
+
+            <br><br>
+
+            <p><i>Click a button to submit your review decision.</i></p>
